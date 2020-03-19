@@ -7,7 +7,7 @@ import (
 )
 
 func Pull(cctx *cli.Context) error {
-	state := cctx.String("state-path")
+	state := cctx.GlobalString("state-path")
 	if cctx.NArg() != 1 {
 		return errors.Errorf("want 1 arg, have %d args", cctx.NArg())
 	}
@@ -26,7 +26,7 @@ func Pull(cctx *cli.Context) error {
 }
 
 func Run(cctx *cli.Context) error {
-	state := cctx.String("state-path")
+	state := cctx.GlobalString("state-path")
 
 	commands := []string{}
 	if cctx.NArg() < 1 {
@@ -51,7 +51,7 @@ func Run(cctx *cli.Context) error {
 }
 
 func Remove(cctx *cli.Context) error {
-	state := cctx.String("state-path")
+	state := cctx.GlobalString("state-path")
 	if cctx.NArg() != 1 {
 		return errors.Errorf("want 1 arg, have %d args", cctx.NArg())
 	}
@@ -70,7 +70,7 @@ func Remove(cctx *cli.Context) error {
 }
 
 func Clear(cctx *cli.Context) error {
-	state := cctx.String("state-path")
+	state := cctx.GlobalString("state-path")
 	if cctx.NArg() != 0 {
 		return errors.Errorf("want 0 arg, have %d args", cctx.NArg())
 	}

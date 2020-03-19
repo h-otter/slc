@@ -14,6 +14,13 @@ func main() {
 	app.Name = "slc"
 	app.Version = version
 	app.Usage = "Super Lightweight Container"
+	app.Flags = []cli.Flag{
+		cli.StringFlag{
+			Name:  "state-path",
+			Usage: "SLC store container images in the state directory.",
+			Value: "/tmp/slc-state",
+		},
+	}
 
 	app.Commands = []cli.Command{
 		{
@@ -21,45 +28,21 @@ func main() {
 			Usage:     "pull container image",
 			ArgsUsage: "[image]",
 			Action:    Pull,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "state-path",
-					Value: "./state",
-				},
-			},
 		},
 		{
 			Name:      "run",
 			Usage:     "run command on container image",
 			ArgsUsage: "[image] [command]...",
 			Action:    Run,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "state-path",
-					Value: "./state",
-				},
-			},
 		}, {
 			Name:      "rm",
 			Usage:     "remove container image",
 			ArgsUsage: "[image]",
 			Action:    Remove,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "state-path",
-					Value: "./state",
-				},
-			},
 		}, {
 			Name:   "clear",
 			Usage:  "clear all state of the slc",
 			Action: Clear,
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "state-path",
-					Value: "./state",
-				},
-			},
 		},
 	}
 

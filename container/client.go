@@ -14,14 +14,18 @@ type SLCClient struct {
 }
 
 func NewClient(stateDir string) (*SLCClient, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return nil, errors.Wrapf(err, "os.Getwd()")
+	c := &SLCClient{}
+	if filepath.IsAbs(stateDir) {
+		c.stateDir = stateDir
+	} else {
+		wd, err := os.Getwd()
+		if err != nil {
+			return nil, errors.Wrapf(err, "os.Getwd()")
+		}
+
+		c.stateDir = filepath.Join(wd, stateDir)
 	}
 
-	c := &SLCClient{
-		stateDir: filepath.Join(wd, stateDir),
-	}
 	if err := os.MkdirAll(c.stateDir, 0755); err != nil {
 		return nil, errors.Wrapf(err, "os.MkdirAll(%s)", c.stateDir)
 	}
