@@ -7,7 +7,7 @@
 
 ## Usage
 
-### As library
+### As a library
 
 ```go
 	c, err := container.NewClient("./state")
@@ -20,7 +20,7 @@
 	}
 ```
 
-### As command
+### As a command
 
 ```sh
 sudo slc pull busybox
@@ -29,7 +29,14 @@ sudo slc rm busybox
 sudo slc clear
 ```
 
-## Benchmark
+## Build
+
+```sh
+git clone git@github.com:h-otter/slc.git
+make build
+```
+
+## Benchmark (TBD)
 
 - Container overhead
   - Execution time
