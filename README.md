@@ -46,9 +46,9 @@ make build
 ### Execution time / CPU
 
 ```sh
-% time ./main echo test
+% time ./slc echo test
 test
-./main echo test  0.00s user 0.01s system 110% cpu 0.010 total
+./slc echo test  0.00s user 0.01s system 110% cpu 0.010 total
 ```
 
 ```sh
