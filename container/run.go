@@ -1,0 +1,164 @@
+package container
+
+import (
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"syscall"
+
+	"github.com/pkg/errors"
+)
+
+const OLD_ROOTFS = "oldrootfs"
+
+type HostMountOption struct {
+	Src   string
+	Flags uintptr
+	Type  string
+}
+
+var DefaultHostMounts = []HostMountOption{
+	{
+		Src:   "/proc",
+		Flags: 0,
+		Type:  "proc",
+	},
+	{
+		Src:   "/dev",
+		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
+		Type:  "dev",
+	},
+	{
+		Src:   "/sys",
+		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
+		Type:  "sys",
+	},
+	{
+		Src:   "/etc/resolv.conf",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/passwd",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/group",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/hostname",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/hosts",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+}
+
+func createMountTarget(src, dst string) error {
+	if _, err := os.Stat(dst); err != nil {
+		srcStat, err := os.Stat(src)
+		if err != nil {
+			return errors.Wrapf(err, "os.Stat(%s)", src)
+		}
+
+		if srcStat.IsDir() {
+			if err := os.MkdirAll(dst, 0700); err != nil {
+				return errors.Wrapf(err, "os.MkdirAll(%s)", dst)
+			}
+		} else {
+			if _, err := os.Create(dst); err != nil {
+				return errors.Wrapf(err, "os.Create(%s)", dst)
+			}
+		}
+	}
+
+	return nil
+}
+
+// TODO: root で実行する必要がある
+func PrepareMountTargets(rootfs string, options []HostMountOption) error {
+	for _, v := range options {
+		dst := filepath.Join(rootfs, v.Src)
+		if err := createMountTarget(v.Src, dst); err != nil {
+			return errors.Wrapf(err, "createMountTarget(%s, %s)", v.Src, dst)
+		}
+	}
+
+	dst := filepath.Join(rootfs, OLD_ROOTFS)
+	if err := createMountTarget("/", dst); err != nil {
+		return errors.Wrapf(err, "createMountTarget(%s, %s)", "/", dst)
+	}
+
+	return nil
+}
+
+func (c *SLCClient) Run(image string, argv []string) error {
+	rootfs := filepath.Join(c.GetImageDir(image), "rootfs")
+
+	if err := syscall.Unshare(syscall.CLONE_FS | syscall.CLONE_NEWNS); err != nil {
+		return errors.Wrap(err, "syscall.Unshare()")
+	}
+
+	// https://stackoverflow.com/questions/41561136/unshare-mount-namespace-not-working-as-expected
+	if err := syscall.Mount("none", "/", "", syscall.MS_REC|syscall.MS_PRIVATE, ""); err != nil {
+		return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", "none", "/", "", syscall.MS_REC|syscall.MS_PRIVATE, "")
+	}
+
+	for _, v := range DefaultHostMounts {
+		dst := filepath.Join(rootfs, v.Src)
+		if err := syscall.Mount(v.Src, dst, v.Type, v.Flags, ""); err != nil {
+			return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, v.Flags, "")
+		}
+
+		if v.Flags&syscall.MS_RDONLY != 0 {
+			flag := v.Flags | syscall.MS_REMOUNT
+			if err := syscall.Mount(v.Src, dst, v.Type, flag, ""); err != nil {
+				return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, flag, "")
+			}
+		}
+	}
+
+	if err := syscall.Mount(rootfs, rootfs, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
+		return errors.Wrapf(err, "syscall.Mount(%s, %s, %v, %s)", rootfs, rootfs, syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY, "")
+	}
+	// アプリケーションによってはroでマウントするのは良くないかもしれない
+	// 本当は overlayfs などを使いたい
+	// if err := syscall.Mount("none", rootfs, "", syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY|syscall.MS_REMOUNT, ""); err != nil {
+	// 	return errors.Wrapf(err, "syscall.Mount(%s, %s, %v, %s)", rootfs, rootfs, syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY, "")
+	// }
+	if err := syscall.PivotRoot(rootfs, filepath.Join(rootfs, OLD_ROOTFS)); err != nil {
+		return errors.Wrap(err, "syscall.PivotRoot()")
+	}
+	// TODO: mount /tmp
+
+	// if err := syscall.Exec(argv[0], argv, os.Environ()); err != nil {
+	// 	return errors.Wrapf(err, "syscall.Exec(%v, %v)", argv, os.Environ())
+	// }
+
+	cmd := exec.Command("/bin/sh", "-c", strings.Join(argv, " "))
+	cmd.Env = os.Environ()
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		if e2, ok := err.(*exec.ExitError); ok {
+			if s, ok := e2.Sys().(syscall.WaitStatus); ok {
+				os.Exit(s.ExitStatus())
+			} else {
+				return errors.New("Unimplemented for system where exec.ExitError.Sys() is not syscall.WaitStatus.")
+			}
+		} else {
+			return errors.Wrap(err, "cmd.Run()")
+		}
+	}
+
+	return nil
+}
