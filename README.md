@@ -45,9 +45,6 @@ make build
 
 ### Execution time
 
-- Execution time is benchmarked with https://github.com/gsauthof/utility/blob/master/benchmark.sh.
-  - https://unix.stackexchange.com/a/313714
-
 ```sh
 % time docker run debian echo test
 test
