@@ -5,16 +5,71 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"syscall"
 
 	"github.com/pkg/errors"
 )
 
+type HostMountOption struct {
+	Src   string
+	Flags uintptr
+	Type  string
+}
+
+var DefaultHostMounts = []HostMountOption{
+	{
+		Src:   "/proc",
+		Flags: 0,
+		Type:  "proc",
+	},
+	{
+		Src:   "/dev",
+		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
+		Type:  "dev",
+	},
+	{
+		Src:   "/sys",
+		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
+		Type:  "sys",
+	},
+	{
+		Src:   "/etc/resolv.conf",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/passwd",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/group",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/hostname",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+	{
+		Src:   "/etc/hosts",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
+}
+
 type SLCClient struct {
 	stateDir string
+
+	MountOptions []HostMountOption
 }
 
 func NewClient(stateDir string) (*SLCClient, error) {
-	c := &SLCClient{}
+	c := &SLCClient{
+		MountOptions: DefaultHostMounts,
+	}
+
 	if filepath.IsAbs(stateDir) {
 		c.stateDir = stateDir
 	} else {
