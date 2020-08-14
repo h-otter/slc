@@ -24,6 +24,10 @@ func createMountTarget(src, dst string) error {
 				return errors.Wrapf(err, "os.MkdirAll(%s)", dst)
 			}
 		} else {
+			if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+				return errors.Wrapf(err, "os.MkdirAll(%s)", filepath.Base(dst))
+			}
+
 			if _, err := os.Create(dst); err != nil {
 				return errors.Wrapf(err, "os.Create(%s)", dst)
 			}
