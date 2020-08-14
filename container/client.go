@@ -62,6 +62,11 @@ var DefaultHostMounts = []HostMountOption{
 		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
 		Type:  "",
 	},
+	{
+		Src:   "/var/log/wtmp",
+		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:  "",
+	},
 }
 
 type SLCClient struct {
