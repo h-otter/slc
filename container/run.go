@@ -20,7 +20,7 @@ func createMountTarget(src, dst string) error {
 		}
 
 		if srcStat.IsDir() {
-			if err := os.MkdirAll(dst, 0700); err != nil {
+			if err := os.MkdirAll(dst, 0755); err != nil {
 				return errors.Wrapf(err, "os.MkdirAll(%s)", dst)
 			}
 		} else {
@@ -53,6 +53,10 @@ func PrepareMountTargets(rootfs string, options []HostMountOption) error {
 func (c *SLCClient) Run(image string, argv []string) error {
 	rootfs := filepath.Join(c.GetImageDir(image), "rootfs")
 
+	if f, err := os.Stat(rootfs); os.IsNotExist(err) || !f.IsDir() {
+		return errors.New("image is not found, please pull the image")
+	}
+
 	if err := syscall.Unshare(syscall.CLONE_FS | syscall.CLONE_NEWNS); err != nil {
 		return errors.Wrap(err, "syscall.Unshare()")
 	}
@@ -62,7 +66,7 @@ func (c *SLCClient) Run(image string, argv []string) error {
 		return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", "none", "/", "", syscall.MS_REC|syscall.MS_PRIVATE, "")
 	}
 
-	for _, v := range c.hostMounts {
+	for _, v := range c.MountOptions {
 		dst := filepath.Join(rootfs, v.Src)
 		if err := syscall.Mount(v.Src, dst, v.Type, v.Flags, ""); err != nil {
 			return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, v.Flags, "")

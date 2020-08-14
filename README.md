@@ -46,7 +46,7 @@ make build
 ### Execution time / CPU
 
 ```sh
-% time ./slc echo test
+% time ./slc run debian echo test
 test
 ./slc echo test  0.00s user 0.01s system 110% cpu 0.010 total
 ```

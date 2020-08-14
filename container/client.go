@@ -67,12 +67,12 @@ var DefaultHostMounts = []HostMountOption{
 type SLCClient struct {
 	stateDir string
 
-	hostMounts []HostMountOption
+	MountOptions []HostMountOption
 }
 
 func NewClient(stateDir string) (*SLCClient, error) {
 	c := &SLCClient{
-		hostMounts: DefaultHostMounts,
+		MountOptions: DefaultHostMounts,
 	}
 
 	if filepath.IsAbs(stateDir) {
