@@ -2,6 +2,7 @@ package unpack
 
 import (
 	"context"
+	"os"
 	"testing"
 )
 
@@ -21,7 +22,8 @@ func TestMediumUnpack(t *testing.T) {
 	defer cancel()
 	image := "gcr.io/google-containers/busybox:1.27"
 	target := "./rootfs"
-	// defer os.RemoveAll(target)
+	defer os.RemoveAll(target)
+
 	if err := UnpackImage(ctx, image, target); err != nil {
 		t.Errorf("err=%v", err)
 	}
@@ -34,7 +36,8 @@ func TestMediumUnpackLatest(t *testing.T) {
 	defer cancel()
 	image := "gcr.io/google-containers/busybox"
 	target := "./rootfs"
-	// defer os.RemoveAll(target)
+	defer os.RemoveAll(target)
+
 	if err := UnpackImage(ctx, image, target); err != nil {
 		t.Errorf("err=%v", err)
 	}
@@ -47,7 +50,8 @@ func TestMediumUnpackDockerhub(t *testing.T) {
 	defer cancel()
 	image := "busybox"
 	target := "./rootfs"
-	// defer os.RemoveAll(target)
+	defer os.RemoveAll(target)
+
 	if err := UnpackImage(ctx, image, target); err != nil {
 		t.Errorf("err=%v", err)
 	}

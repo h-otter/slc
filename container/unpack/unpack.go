@@ -9,11 +9,11 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/docker/distribution/manifest/schema2"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -128,29 +128,18 @@ func GetManifest(image string) (*schema2.Manifest, error) {
 	return manifest, nil
 }
 
-func GetBlob(image string, layerDigest string, output string) error {
+func GetBlob(image string, layerDigest string) (io.ReadCloser, error) {
 	blobURL, err := GetImageBlobURL(image, layerDigest)
 	if err != nil {
-		return errors.Wrap(err, "")
+		return nil, errors.Wrap(err, "")
 	}
 
 	resp, err := http.Get(blobURL)
 	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	defer resp.Body.Close()
-
-	f, err := os.Create(output)
-	if err != nil {
-		return errors.Wrap(err, "")
-	}
-	defer f.Close()
-
-	if _, err := io.Copy(f, resp.Body); err != nil {
-		return errors.Wrap(err, "")
+		return nil, errors.Wrap(err, "")
 	}
 
-	return nil
+	return resp.Body, nil
 }
 
 func UnpackImage(ctx context.Context, image string, target string) error {
@@ -166,17 +155,19 @@ func UnpackImage(ctx context.Context, image string, target string) error {
 	defer os.RemoveAll(tmp)
 
 	eg := &errgroup.Group{}
+	blobs := sync.Map{}
 	for _, layer := range manifest.Layers {
 		layerDigest := layer.Digest.String()
 		eg.Go(func() error {
-			tar := filepath.Join(tmp, layerDigest)
-			log.Printf("[INFO] downloading %s to %s", layerDigest, tar)
-			err := GetBlob(image, layerDigest, tar)
+			log.Printf("[INFO] downloading %s", layerDigest)
+
+			b, err := GetBlob(image, layerDigest)
 			if err != nil {
 				return errors.Wrap(err, "GetBlob()")
 			}
-			log.Printf("[INFO] downloaded %s", layerDigest)
+			blobs.Store(layerDigest, b)
 
+			log.Printf("[INFO] downloaded %s", layerDigest)
 			return nil
 		})
 	}
@@ -185,16 +176,16 @@ func UnpackImage(ctx context.Context, image string, target string) error {
 	}
 
 	os.MkdirAll(target, 0755)
-	os.Chdir(target)
 	for _, layer := range manifest.Layers {
-		tar := filepath.Join(tmp, layer.Digest.String())
-		log.Printf("[INFO] extracting %s", tar)
-		// tarの回答部分もGolangで実装しようかと思ったが、tarのないシステムが存在するリスクと、Golangの実装の甘さによる弊害のリスクを考えたときに、前者のほうが低そうなのでコマンドで実行することにした
-		cmd := exec.Command("tar", "xf", tar)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			return errors.Wrap(err, "cmd.Run()")
+		layerDigest := layer.Digest.String()
+		log.Printf("[INFO] extracting %s", layerDigest)
+
+		b, _ := blobs.Load(layerDigest)
+		blob := b.(io.ReadCloser)
+		defer blob.Close()
+
+		if err := archive.Untar(blob, target, &archive.TarOptions{}); err != nil {
+			return errors.Wrap(err, "archive.Untar()")
 		}
 	}
 
