@@ -12,55 +12,6 @@ import (
 
 const OLD_ROOTFS = "oldrootfs"
 
-type HostMountOption struct {
-	Src   string
-	Flags uintptr
-	Type  string
-}
-
-var DefaultHostMounts = []HostMountOption{
-	{
-		Src:   "/proc",
-		Flags: 0,
-		Type:  "proc",
-	},
-	{
-		Src:   "/dev",
-		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
-		Type:  "dev",
-	},
-	{
-		Src:   "/sys",
-		Flags: syscall.MS_BIND | syscall.MS_PRIVATE,
-		Type:  "sys",
-	},
-	{
-		Src:   "/etc/resolv.conf",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
-	},
-	{
-		Src:   "/etc/passwd",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
-	},
-	{
-		Src:   "/etc/group",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
-	},
-	{
-		Src:   "/etc/hostname",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
-	},
-	{
-		Src:   "/etc/hosts",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
-	},
-}
-
 func createMountTarget(src, dst string) error {
 	if _, err := os.Stat(dst); err != nil {
 		srcStat, err := os.Stat(src)
@@ -111,7 +62,7 @@ func (c *SLCClient) Run(image string, argv []string) error {
 		return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", "none", "/", "", syscall.MS_REC|syscall.MS_PRIVATE, "")
 	}
 
-	for _, v := range DefaultHostMounts {
+	for _, v := range c.hostMounts {
 		dst := filepath.Join(rootfs, v.Src)
 		if err := syscall.Mount(v.Src, dst, v.Type, v.Flags, ""); err != nil {
 			return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, v.Flags, "")
