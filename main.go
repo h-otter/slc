@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 )
 
 var version = "undefined"
@@ -15,14 +15,14 @@ func main() {
 	app.Version = version
 	app.Usage = "Super Lightweight Container"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "state-path",
 			Usage: "SLC store container images in the state directory.",
 			Value: "/tmp/slc-state",
 		},
 	}
 
-	app.Commands = []cli.Command{
+	app.Commands = []*cli.Command{
 		{
 			Name:      "pull",
 			Usage:     "pull container image",
@@ -34,12 +34,14 @@ func main() {
 			Usage:     "run command on container image",
 			ArgsUsage: "[image] [command]...",
 			Action:    Run,
-		}, {
+		},
+		{
 			Name:      "rm",
 			Usage:     "remove container image",
 			ArgsUsage: "[image]",
 			Action:    Remove,
-		}, {
+		},
+		{
 			Name:   "clear",
 			Usage:  "clear all state of the slc",
 			Action: Clear,
