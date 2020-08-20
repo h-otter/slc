@@ -11,9 +11,10 @@ import (
 )
 
 type HostMountOption struct {
-	Src   string
-	Flags uintptr
-	Type  string
+	Src                 string
+	Flags               uintptr
+	Type                string
+	IgnoreNoSourceError bool
 }
 
 var DefaultHostMounts = []HostMountOption{
@@ -48,9 +49,10 @@ var DefaultHostMounts = []HostMountOption{
 		Type:  "",
 	},
 	{
-		Src:   "/etc/hostname",
-		Flags: syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
-		Type:  "",
+		Src:                 "/etc/hostname",
+		Flags:               syscall.MS_BIND | syscall.MS_RDONLY | syscall.MS_PRIVATE,
+		Type:                "",
+		IgnoreNoSourceError: true, // CentOS 6 do not have /etc/hostname file
 	},
 	{
 		Src:   "/etc/hosts",
