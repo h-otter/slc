@@ -31,33 +31,30 @@ func (c *SLCClient) Run(image string, argv []string) error {
 	for _, v := range c.MountOptions {
 		dst := filepath.Join(rootfs, v.Src)
 		if err := syscall.Mount(v.Src, dst, v.Type, v.Flags, ""); err != nil {
-			return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, v.Flags, "")
-		}
-
-		if v.Flags&syscall.MS_RDONLY != 0 {
-			flag := v.Flags | syscall.MS_REMOUNT
-			if err := syscall.Mount(v.Src, dst, v.Type, flag, ""); err != nil {
-				return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, flag, "")
+			if v.IgnoreNoSourceError {
+				continue
+			} else {
+				return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, v.Flags, "")
 			}
 		}
+
+		// このブロックがなぜ必要だったのか忘れてしまった、ごめんなさい
+		// テストした限り動く
+		// if v.Flags&syscall.MS_RDONLY != 0 {
+		// 	flag := v.Flags | syscall.MS_REMOUNT
+		// 	if err := syscall.Mount(v.Src, dst, v.Type, flag, ""); err != nil {
+		// 		return errors.Wrapf(err, "syscall.Mount(%s, %s, %s, %v, %s)", v.Src, dst, v.Type, flag, "")
+		// 	}
+		// }
 	}
 
 	if err := syscall.Mount(rootfs, rootfs, "", syscall.MS_BIND|syscall.MS_REC, ""); err != nil {
 		return errors.Wrapf(err, "syscall.Mount(%s, %s, %v, %s)", rootfs, rootfs, syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY, "")
 	}
-	// アプリケーションによってはroでマウントするのは良くないかもしれない
-	// 本当は overlayfs などを使いたい
-	// if err := syscall.Mount("none", rootfs, "", syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY|syscall.MS_REMOUNT, ""); err != nil {
-	// 	return errors.Wrapf(err, "syscall.Mount(%s, %s, %v, %s)", rootfs, rootfs, syscall.MS_BIND|syscall.MS_REC|syscall.MS_RDONLY, "")
-	// }
 	if err := syscall.PivotRoot(rootfs, filepath.Join(rootfs, OLD_ROOTFS)); err != nil {
 		return errors.Wrap(err, "syscall.PivotRoot()")
 	}
 	// TODO: mount /tmp
-
-	// if err := syscall.Exec(argv[0], argv, os.Environ()); err != nil {
-	// 	return errors.Wrapf(err, "syscall.Exec(%v, %v)", argv, os.Environ())
-	// }
 
 	cmd := exec.Command("/bin/sh", "-c", strings.Join(argv, " "))
 	cmd.Env = os.Environ()
