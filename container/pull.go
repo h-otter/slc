@@ -43,13 +43,13 @@ func PrepareMountTargets(rootfs string, options []HostMountOption) error {
 	for _, v := range options {
 		dst := filepath.Join(rootfs, v.Src)
 		if err := createMountTarget(v.Src, dst, v.IgnoreNoSourceError); err != nil {
-			return errors.Wrapf(err, "createMountTarget(%s, %s)", v.Src, dst)
+			return errors.Wrapf(err, "createMountTarget(%s, %s, %v)", v.Src, dst, v.IgnoreNoSourceError)
 		}
 	}
 
 	dst := filepath.Join(rootfs, OLD_ROOTFS)
 	if err := createMountTarget("/", dst, false); err != nil {
-		return errors.Wrapf(err, "createMountTarget(%s, %s)", "/", dst)
+		return errors.Wrapf(err, "createMountTarget(%s, %s, %v)", "/", dst, false)
 	}
 
 	return nil
